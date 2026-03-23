@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>攻略企友系统</title>
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Segoe UI", sans-serif;
+}
+body {
+    background: #121212;
+    color: #e0e0e0;
+    padding: 20px;
+    min-height: 100vh;
+}
+.container {
+    max-width: 700px;
+    margin: 30px auto;
+    background: #1e1e1e;
+    padding: 30px;
+    border-radius: 16px;
+    border: 1px solid #333;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+.title {
+    font-size: 24px;
+    margin-bottom: 20px;
+    color: #fff;
+    text-align: center;
+}
+.paper-item {
+    background: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 12px 0;
+    cursor: pointer;
+    transition: 0.2s;
+    text-align: center;
+    font-size: 16px;
+}
+.paper-item:hover {
+    border-color: #7a6af7;
+    background: #333;
+}
+.question {
+    font-size: 18px;
+    margin: 20px 0;
+    line-height: 1.6;
+    color: #f9f9f9;
+}
+.option {
+    background: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 10px 0;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.option:hover {
+    border-color: #7a6af7;
+    background: #333;
+}
+.option.selected {
+    background: #7a6af7;
+    color: #fff;
+    border-color: #9080ff;
+}
+.btn {
+    background: #7a6af7;
+    color: #fff;
+    border: none;
+    padding: 14px;
+    border-radius: 10px;
+    width: 100%;
+    font-size: 16px;
+    margin-top: 20px;
+    cursor: pointer;
+}
+.btn:disabled {
+    background: #444;
+    cursor: not-allowed;
+}
+.correct { color: #00e6b7; }
+.wrong { color: #ff5555; }
+.page { display: none; }
+.page.active { display: block; }
+.progress {
+    color: #aaa;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+/* 好感进度条 */
+.favor-bar-box {
+    width: 100%;
+    height: 12px;
+    background: #333;
+    border-radius: 6px;
+    margin: 12px auto 20px;
+    overflow: hidden;
+    max-width: 400px;
+}
+.favor-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #7a6af7, #ff69b4);
+    border-radius: 6px;
+    transition: width 0.8s ease;
+}
+
+/* 结局评价 */
+.end-eval {
+    font-size: 18px;
+    text-align: center;
+    padding: 20px;
+    background: #252525;
+    border-radius: 12px;
+    margin: 20px 0;
+    color: #fff;
+    white-space: pre-line;
+}
+
+/* 全局留言板 */
+.msg-box {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #444;
+}
+.msg-input {
+    width: 100%;
+    background: #222;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: #fff;
+    margin-top: 8px;
+    outline: none;
+}
+.msg-list {
+    margin-top: 10px;
+    font-size: 14px;
+    color: #ccc;
+    max-height: 180px;
+    overflow-y: auto;
+}
+.msg-item {
+    background: #2a2a2a;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-top: 6px;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+    <div class="title">攻略系统</div>
+
+    <!-- 1. 试卷选择页 -->
+    <div id="selectPage" class="page active">
+        <div id="paperList"></div>
+    </div>
+
+    <!-- 2. 答题页 -->
+    <div id="questionPage" class="page">
+        <div class="progress" id="progress"></div>
+        <div class="question" id="question"></div>
+        <div id="options"></div>
+        <button class="btn" id="nextBtn" disabled>下一题</button>
+    </div>
+
+    <!-- 3. 结果页（极简版） -->
+    <div id="resultPage" class="page">
+        <h2 style="text-align:center;">攻略完成 ✅</h2>
+        <div id="score" style="text-align:center; margin:10px 0;"></div>
+        
+        <div class="favor-bar-box">
+            <div class="favor-bar" id="favorBar"></div>
+        </div>
+        
+        <div id="endEval" class="end-eval"></div>
+
+        <!-- 全局留言板（在结局最下方） -->
+        <div class="msg-box">
+            <div>💬 结局留言</div>
+            <input type="text" class="msg-input" placeholder="留下你的感想..." onchange="saveGlobalMsg(this.value)">
+            <div class="msg-list" id="globalMsgList"></div>
+        </div>
+
+        <button class="btn" id="restartBtn">返回选择</button>
+    </div>
+</div>
+
+<script>
+// ===================== 题库 =====================
+const examData = {
+    paper1: {
+        name: "kura",
+        questions: [
+            {
+                title: "你会怎么称呼kura？",
+                options: [
+                    { text: "kurako" },
+                    { text: "喂" },
+                    { text: "喂那个" },
+                    { text: "路人" }
+                ],
+                answer: 0
+            },
+            {
+                title: "遇到kura第一句话说？",
+                options: [
+                    { text: "今天好可爱" },
+                    { text: "你在干嘛" },
+                    { text: "走开" }
+                ],
+                answer: 0
+            },
+        ]
+    },
+    paper2: {
+        name: "广告位招租喵",
+        questions: [
+            {
+                title: "广告位招租喵",
+                options: [ { text: "不要点" } ],
+                answer: 0
+            }
+        ]
+    }
+};
+
+// ===================== 结局配置（直接改这里） =====================
+const endings = {
+    bad: `💔 结局：【诅咒】
+TA对你完全没有印象，
+你们只是擦肩而过的陌生人。`,
+
+    normal: `💛 结局：【bye-bye baby blue】
+TA对你有一些好感，
+如果你要爱我，你就会时刻面对一个偏激的疯子，他对世上的活物、死物都怀抱意见。会把伤人的话语藏进温柔的蜜语。
+有时候他走近你是为了把你推得更远，有事他对你心怀愧疚却谴责你忘了他，
+是玩弄道德的演员，撕心裂肺只为引起你的激荡，去拯救他日益麻痹的心。
+对，拯救，自我拯救。
+你要被他的锐利割伤的同时告诉他没事
+弥补他的空虚，同时给他一颗心。
+当你为他的新生欢呼，他又在快乐的时候比悲伤的时候还要痛苦。
+我们不如省略这些，感到快乐便只享受面前的快乐，而不必走入
+真实的爱会令人崩溃，不能让我们一同走过的路成为笑话，你说是不是？`,
+
+    perfect: `❤️ 结局：【虞姬】
+不幸地祝福你！
+我要你剜去双眼，只看我眼中的世界；我要你只倾听一种声音，那便是我的。
+当我在你身边，你是我的死亡之地，
+我把你的生命视作我余下的生命，
+直到你的心停止跳动，
+我随你而去，坐上同一艘摆渡木舟。
+你的过去不再蒙尘，未来不再有希望，只因我这只心灵丑陋、灵魂空虚的精灵爱上了你。
+`
+};
+
+// ===================== 全局留言 =====================
+const MSG_KEY = "game_global_msgs";
+
+let currentPaper = null;
+let currentQuestion = 0;
+let userAnswers = [];
+
+const selectPage = document.getElementById('selectPage');
+const questionPage = document.getElementById('questionPage');
+const resultPage = document.getElementById('resultPage');
+const paperList = document.getElementById('paperList');
+const progress = document.getElementById('progress');
+const question = document.getElementById('question');
+const options = document.getElementById('options');
+const nextBtn = document.getElementById('nextBtn');
+const score = document.getElementById('score');
+const endEval = document.getElementById('endEval');
+const favorBar = document.getElementById('favorBar');
+const restartBtn = document.getElementById('restartBtn');
+const globalMsgList = document.getElementById('globalMsgList');
+
+// 初始化
+renderPaperList();
+
+// 渲染试卷
+function renderPaperList() {
+    paperList.innerHTML = '';
+    for (let id in examData) {
+        let item = document.createElement('div');
+        item.className = 'paper-item';
+        item.textContent = examData[id].name;
+        item.onclick = () => startExam(id);
+        paperList.appendChild(item);
+    }
+}
+
+// 开始攻略
+function startExam(paperId) {
+    currentPaper = examData[paperId];
+    currentQuestion = 0;
+    userAnswers = [];
+    selectPage.classList.remove('active');
+    questionPage.classList.add('active');
+    renderQuestion();
+}
+
+// 渲染题目
+function renderQuestion() {
+    if (currentQuestion >= currentPaper.questions.length) {
+        showResult();
+        return;
+    }
+    const q = currentPaper.questions[currentQuestion];
+    progress.textContent = `第 ${currentQuestion+1} 题 / 共 ${currentPaper.questions.length} 题`;
+    question.textContent = q.title;
+    options.innerHTML = '';
+    nextBtn.disabled = true;
+
+    q.options.forEach((opt, i) => {
+        let div = document.createElement('div');
+        div.className = 'option';
+        div.textContent = opt.text;
+        div.onclick = () => {
+            document.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+            div.classList.add('selected');
+            userAnswers[currentQuestion] = i;
+            nextBtn.disabled = false;
+        };
+        options.appendChild(div);
+    });
+}
+
+// 下一题
+nextBtn.onclick = () => {
+    currentQuestion++;
+    renderQuestion();
+};
+
+// 显示结果（极简）
+function showResult() {
+    questionPage.classList.remove('active');
+    resultPage.classList.add('active');
+
+    let total = currentPaper.questions.length;
+    let correct = 0;
+    userAnswers.forEach((ans, i) => {
+        if (ans === currentPaper.questions[i].answer) correct++;
+    });
+
+    score.textContent = `攻略对象：${currentPaper.name} | 好感度：${correct} / ${total}`;
+
+    // 进度条
+    let percent = (correct / total) * 100;
+    favorBar.style.width = percent + "%";
+
+    // 绑定结局
+    let endText;
+    if (correct === 0) {
+        endText = endings.bad;
+    } else if (correct === total) {
+        endText = endings.perfect;
+    } else {
+        endText = endings.normal;
+    }
+    endEval.innerText = endText;
+
+    // 显示留言
+    showGlobalMsg();
+}
+
+// 保存全局留言
+function saveGlobalMsg(msg) {
+    if (!msg) return;
+    let list = JSON.parse(localStorage.getItem(MSG_KEY) || "[]");
+    list.push(`[${currentPaper.name}] ${msg}`);
+    localStorage.setItem(MSG_KEY, JSON.stringify(list));
+    showGlobalMsg();
+    document.querySelector('.msg-input').value = '';
+}
+
+// 显示留言
+function showGlobalMsg() {
+    let list = JSON.parse(localStorage.getItem(MSG_KEY) || "[]");
+    globalMsgList.innerHTML = list.map(m => `<div class="msg-item">${m}</div>`).join('');
+}
+
+// 返回
+restartBtn.onclick = () => {
+    resultPage.classList.remove('active');
+    selectPage.classList.add('active');
+};
+</script>
+</body>
+</html>
